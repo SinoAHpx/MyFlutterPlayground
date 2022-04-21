@@ -1,176 +1,93 @@
-import 'dart:math';
-import 'dart:ui';
-
+import 'package:faker/faker.dart';
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
+class Product {
+  const Product({required this.name});
+
+  final String name;
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+typedef CartChangedCallback = Function(Product product, bool inCart);
 
-  Widget _buildButton(Color color, String text, IconData icon) {
-    return TextButton(
-      onPressed: () => {},
-      style: TextButton.styleFrom(shape: const CircleBorder()),
-      child: Container(
-          margin: const EdgeInsets.all(10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: color,
-              ),
-              Container(
-                  margin: const EdgeInsets.only(top: 5),
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400),
-                  ))
-            ],
-          )),
+class ShoppingListItem extends StatelessWidget {
+  ShoppingListItem({
+    required this.product,
+    required this.inCart,
+    required this.onCartChanged,
+  }) : super(key: ObjectKey(product));
+
+  final Product product;
+  final bool inCart;
+  final CartChangedCallback onCartChanged;
+
+  Color _getColor(BuildContext context) {
+    // The theme depends on the BuildContext because different
+    // parts of the tree can have different themes.
+    // The BuildContext indicates where the build is
+    // taking place and therefore which theme to use.
+
+    return inCart //
+        ? Colors.black54
+        : Theme.of(context).primaryColor;
+  }
+
+  TextStyle? _getTextStyle(BuildContext context) {
+    if (!inCart) return null;
+
+    return const TextStyle(
+      color: Colors.black54,
+      decoration: TextDecoration.lineThrough,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    var titleSection = Container(
-      padding: const EdgeInsets.all(32),
-      child: Row(
-        children: [
-          Expanded(
-            /*1*/
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /*2*/
-                Container(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: const Text(
-                    'Oeschinen Lake Campground',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Text(
-                  'Kandersteg, Switzerland',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          /*3*/
-          Icon(
-            Icons.star,
-            color: Colors.red[500],
-          ),
-          const Text('41'),
-        ],
+    return ListTile(
+      onTap: () {
+        onCartChanged(product, inCart);
+      },
+      leading: CircleAvatar(
+        backgroundColor: _getColor(context),
+        child: Text(product.name[0]),
       ),
-    );
-
-    Color color = Theme.of(context).primaryColor;
-    var buttonSection = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildButton(color, 'CALL', Icons.call),
-        _buildButton(color, 'MAP', Icons.near_me),
-        _buildButton(color, 'SHARE', Icons.share),
-      ],
-    );
-
-    var textSection = const Padding(
-      padding: EdgeInsets.all(32),
-      child: Text(
-        'Lake Oeschinen lies at the foot of the Blüemlisalp in the Bernese '
-        'Alps. Situated 1,578 meters above sea level, it is one of the '
-        'larger Alpine Lakes. A gondola ride from Kandersteg, followed by a '
-        'half-hour walk through pastures and pine forest, leads you to the '
-        'lake, which warms to 20 degrees Celsius in the summer. Activities '
-        'enjoyed here include rowing, and riding the summer toboggan run.',
-        softWrap: true,
+      title: Text(
+        product.name,
+        style: _getTextStyle(context),
       ),
-    );
-
-    var imageSection = Image.asset(
-      "assets/last_sunset_2020.jpg",
-      fit: BoxFit.cover,
-    );
-
-    return MaterialApp(
-      title: 'Hello, Flutter',
-      theme: ThemeData(
-        primarySwatch: Colors.purple,
-      ),
-      // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: Scaffold(
-        appBar: AppBar(
-          title: Row(
-            children: [
-              const Icon(Icons.travel_explore),
-              Container(
-                  child: const Text("How's your trip?"),
-                  margin: const EdgeInsets.only(left: 10)),
-            ],
-          ),
-          flexibleSpace: Stack(
-            fit: StackFit.expand,
-            children: [
-              imageSection,
-              ClipRRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    color: Colors.transparent,
-                  ),
-                ),
-              )
-            ],
-          ),
-          backgroundColor: Colors.transparent,
-        ),
-        body: ListView(
-          children: [titleSection, buttonSection, textSection],
-        ),
-      ),
-      debugShowCheckedModeBanner: true,
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+class ShoppingList extends StatefulWidget {
+  const ShoppingList({required this.products, Key? key}) : super(key: key);
 
-  final String title;
+  final List<Product> products;
+
+  // The framework calls createState the first time
+  // a widget appears at a given location in the tree.
+  // If the parent rebuilds and uses the same type of
+  // widget (with the same key), the framework re-uses
+  // the State object instead of creating a new State object.
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _ShoppingListState createState() => _ShoppingListState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final _controller = TextEditingController(text: pow(10000, 2).toString());
+class _ShoppingListState extends State<ShoppingList> {
+  final _shoppingCart = <Product>{};
 
-  void _decrementCounter() {
+  void _handleCartChanged(Product product, bool inCart) {
     setState(() {
-      _controller.text = "${int.parse(_controller.text) - 1}";
-    });
-  }
+      // When a user changes what's in the cart, you need
+      // to change _shoppingCart inside a setState call to
+      // trigger a rebuild.
+      // The framework then calls build, below,
+      // which updates the visual appearance of the app.
 
-  void _resetCounter() {
-    setState(() {
-      if (_controller.text == "0") {
-        _controller.text = pow(10000, 2).toString();
+      if (!inCart) {
+        _shoppingCart.add(product);
       } else {
-        _controller.text = "0";
+        _shoppingCart.remove(product);
       }
     });
   }
@@ -178,31 +95,30 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // appBar: AppBar(
-      //   title: const Text("Hello World"),
-      // ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'The counter still:',
-            ),
-            TextFormField(
-              controller: _controller,
-            ),
-            OutlinedButton(
-              onPressed: _resetCounter,
-              child: const Text("Reset"),
-            )
-          ],
-        ),
+      appBar: AppBar(
+        title: const Text('Shopping List'),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _decrementCounter,
-        tooltip: 'Decrement',
-        child: const Icon(Icons.remove),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        children: widget.products.map((Product product) {
+          return ShoppingListItem(
+            product: product,
+            inCart: _shoppingCart.contains(product),
+            onCartChanged: _handleCartChanged,
+          );
+        }).toList(),
       ),
     );
   }
+}
+
+void main() {
+  runApp(MaterialApp(
+    title: 'Shopping App',
+    home: ShoppingList(
+      products: [
+        for (int i = 0; i < 100; i++) Product(name: faker.food.dish()),
+      ],
+    ),
+  ));
 }
